@@ -175,11 +175,22 @@ export default function App() {
   }
 
   const saveSettings = (newKey) => {
-    setApiKey(newKey)
-    localStorage.setItem('weatherApiKey', newKey)
-    setSettingsOpen(false)
-    showToast('설정이 저장되었어요')
+  if (!newKey.trim()) {
+    showToast('API 키를 입력해주세요 🔑')
+    return
   }
+
+  const trimmedKey = newKey.trim()
+
+  setApiKey(trimmedKey)
+  localStorage.setItem('weatherApiKey', trimmedKey)
+  setSettingsOpen(false)
+
+  setWeatherLocation('⏳ 기상청 날씨 불러오는 중...')
+  showToast('API 키가 저장되었어요 🔑')
+
+  fetchWeather(trimmedKey)
+}
 
   return (
     <>
