@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { WEATHERS, mapOwmCode } from './constants/weathers'
+import { WEATHERS } from './constants/weathers'
 import WriteSection from './components/WriteSection'
 import FeedSection from './components/FeedSection'
 import CalendarSection from './components/CalendarSection'
