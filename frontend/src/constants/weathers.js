@@ -13,14 +13,50 @@ export const WEATHERS = [
   { emoji: '🌙', label: '밤', mood: '고요하고 사색적인' },
 ]
 
-export function mapOwmCode(code) {
-  if (code >= 200 && code < 300) return WEATHERS.findIndex(w => w.label === '폭풍')
-  if (code >= 300 && code < 400) return WEATHERS.findIndex(w => w.label === '비')
-  if (code >= 500 && code < 511) return WEATHERS.findIndex(w => w.label === '비')
-  if (code === 511 || (code >= 600 && code < 700)) return WEATHERS.findIndex(w => w.label === '눈')
-  if (code >= 700 && code < 800) return WEATHERS.findIndex(w => w.label === '안개')
-  if (code === 800) return WEATHERS.findIndex(w => w.label === '맑음')
-  if (code === 801) return WEATHERS.findIndex(w => w.label === '구름조금')
-  if (code >= 802 && code <= 804) return WEATHERS.findIndex(w => w.label === '흐림')
-  return 0
+const findWeatherIndex = (label) => {
+  const index = WEATHERS.findIndex((weather) => weather.label === label)
+  return index === -1 ? 0 : index
+}
+
+export function mapKmaWeather(sky, pty, temp) {
+  const hour = new Date().getHours()
+  const isNight = hour >= 19 || hour < 6
+
+  if (isNight && Number(pty) === 0) {
+    return findWeatherIndex('밤')
+  }
+
+  if (Number(temp) <= -5) {
+    return findWeatherIndex('한파')
+  }
+
+  switch (Number(pty)) {
+    case 1:
+      return findWeatherIndex('비')
+    case 2:
+      return findWeatherIndex('가끔비')
+    case 3:
+      return findWeatherIndex('눈')
+    case 4:
+      return findWeatherIndex('가끔비')
+    case 5:
+      return findWeatherIndex('가끔비')
+    case 6:
+      return findWeatherIndex('가끔비')
+    case 7:
+      return findWeatherIndex('눈')
+    default:
+      break
+  }
+
+  switch (Number(sky)) {
+    case 1:
+      return findWeatherIndex('맑음')
+    case 3:
+      return findWeatherIndex('구름조금')
+    case 4:
+      return findWeatherIndex('흐림')
+    default:
+      return findWeatherIndex('맑음')
+  }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { WEATHERS } from './constants/weathers'
+import { WEATHERS, mapKmaWeather } from './constants/weathers'
 import WriteSection from './components/WriteSection'
 import FeedSection from './components/FeedSection'
 import CalendarSection from './components/CalendarSection'
@@ -25,9 +25,9 @@ export default function App() {
   const [diaryText, setDiaryText] = useState('')
   const [currentTags, setCurrentTags] = useState([])
 
-  const now = new Date()
-  const [calYear, setCalYear] = useState(now.getFullYear())
-  const [calMonth, setCalMonth] = useState(now.getMonth())
+  const dateNow = new Date()
+  const [calYear, setCalYear] = useState(dateNow.getFullYear())
+  const [calMonth, setCalMonth] = useState(dateNow.getMonth())
 
   useEffect(() => {
     document.body.classList.toggle('dark', darkMode)
@@ -49,24 +49,39 @@ export default function App() {
     return
   }
 
-  // 일단 대전/한밭대 근처 격자 좌표로 고정
+  // 대전/한밭대 근처 기상청 격자 좌표
   const nx = 67
   const ny = 100
 
-  const now = new Date()
-  now.setMinutes(now.getMinutes() - 40)
+  // 단기예보 발표시간: 0200, 0500, 0800, 1100, 1400, 1700, 2000, 2300
+  const getBaseDateTime = () => {
+    const now = new Date()
+    const baseTimes = [2, 5, 8, 11, 14, 17, 20, 23]
 
-  const yyyy = now.getFullYear()
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const dd = String(now.getDate()).padStart(2, '0')
-  const baseDate = `${yyyy}${mm}${dd}`
+    let baseHour = baseTimes
+      .filter((time) => now.getHours() >= time)
+      .pop()
 
-  const hour = now.getHours()
-  const baseTime = `${String(hour).padStart(2, '0')}30`
+    if (baseHour === undefined) {
+      now.setDate(now.getDate() - 1)
+      baseHour = 23
+    }
+
+    const yyyy = now.getFullYear()
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    const dd = String(now.getDate()).padStart(2, '0')
+
+    return {
+      baseDate: `${yyyy}${mm}${dd}`,
+      baseTime: `${String(baseHour).padStart(2, '0')}00`,
+    }
+  }
 
   try {
+    const { baseDate, baseTime } = getBaseDateTime()
+
     const url =
-      `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst` +
+      `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst` +
       `?serviceKey=${key}` +
       `&pageNo=1` +
       `&numOfRows=1000` +
@@ -79,30 +94,43 @@ export default function App() {
     const res = await fetch(url)
     const data = await res.json()
 
+    console.log('기상청 API 응답:', data)
+
+    if (data.response?.header?.resultCode !== '00') {
+      setWeatherLocation('⚠️ API 응답 오류')
+      return
+    }
+
     const items = data.response.body.items.item
 
-    const tempItem = items.find(item => item.category === 'T1H')
-    const rainItem = items.find(item => item.category === 'PTY')
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    const todayDate = `${yyyy}${mm}${dd}`
 
-    const temp = tempItem ? Math.round(Number(tempItem.obsrValue)) : '-'
-    const pty = rainItem ? Number(rainItem.obsrValue) : 0
+    const nowHour = String(today.getHours()).padStart(2, '0')
+    const targetTime = `${nowHour}00`
 
-    let weatherIndex = WEATHERS.findIndex(w => w.label === '맑음')
+    const tempItem =
+      items.find(item => item.category === 'TMP' && item.fcstDate === todayDate && item.fcstTime === targetTime) ||
+      items.find(item => item.category === 'TMP')
 
-    if (pty === 1 || pty === 5) {
-      weatherIndex = WEATHERS.findIndex(w => w.label === '비')
-    } else if (pty === 2 || pty === 6) {
-      weatherIndex = WEATHERS.findIndex(w => w.label === '눈')
-    } else if (pty === 3 || pty === 7) {
-      weatherIndex = WEATHERS.findIndex(w => w.label === '눈')
-    }
+    const rainItem =
+      items.find(item => item.category === 'PTY' && item.fcstDate === todayDate && item.fcstTime === targetTime) ||
+      items.find(item => item.category === 'PTY')
 
-    const hourNow = new Date().getHours()
-    if (hourNow >= 19 || hourNow < 6) {
-      weatherIndex = WEATHERS.findIndex(w => w.label === '밤')
-    }
+    const skyItem =
+      items.find(item => item.category === 'SKY' && item.fcstDate === todayDate && item.fcstTime === targetTime) ||
+      items.find(item => item.category === 'SKY')
 
-    setWeatherLocation(`📍 대전 ${temp}°C`)
+    const temp = tempItem ? Number(tempItem.fcstValue) : 0
+    const pty = rainItem ? Number(rainItem.fcstValue) : 0
+    const sky = skyItem ? Number(skyItem.fcstValue) : 1
+
+    const weatherIndex = mapKmaWeather(sky, pty, temp)
+
+    setWeatherLocation(`📍 대전 ${Math.round(temp)}°C`)
     setSelectedWeather(prev => prev === null ? weatherIndex : prev)
   } catch (error) {
     console.error(error)
@@ -115,8 +143,16 @@ export default function App() {
   }, [apiKey, fetchWeather])
 
   const saveEntry = () => {
-    if (!diaryText.trim()) { showToast('일기 내용을 입력해주세요 ✏️'); return }
-    if (selectedWeather === null) { showToast('날씨를 선택해주세요 🌤️'); return }
+    if (!diaryText.trim()) {
+      showToast('일기 내용을 입력해주세요 ✏️')
+      return
+    }
+
+    if (selectedWeather === null) {
+      showToast('날씨를 선택해주세요 🌤️')
+      return
+    }
+
     const entry = {
       id: Date.now(),
       date: new Date().toISOString(),
@@ -124,6 +160,7 @@ export default function App() {
       text: diaryText.trim(),
       tags: [...currentTags],
     }
+
     setEntries(prev => [entry, ...prev])
     setDiaryText('')
     setSelectedWeather(null)
@@ -181,9 +218,11 @@ export default function App() {
             onSave={saveEntry}
           />
         )}
+
         {activeTab === 'feed' && (
           <FeedSection entries={entries} onDelete={deleteEntry} />
         )}
+
         {activeTab === 'calendar' && (
           <CalendarSection
             entries={entries}
