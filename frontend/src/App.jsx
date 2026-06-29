@@ -253,6 +253,7 @@ export default function App() {
             schedules={schedules}
             onDeleteSchedule={deleteSchedule}
             onSaveSchedule={saveSchedule}
+            onDeleteEntry={deleteEntry}
             calYear={calYear}
             calMonth={calMonth}
             setCalYear={setCalYear}

@@ -54,8 +54,7 @@ export default function WriteSection({ selectedMood, setSelectedMood, diaryText,
             title={w.label}
             onClick={() => setSelectedMood(i)}
           >
-            <span>{w.emoji}</span>
-            <span className="weather-label">{w.label}</span>
+            {w.emoji}
           </button>
         ))}
       </div>

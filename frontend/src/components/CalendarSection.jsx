@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import EntryCard from './EntryCard'
 import AddScheduleModal from './AddScheduleModal'
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
 export default function CalendarSection({
-  entries, schedules, onDeleteSchedule, onSaveSchedule,
+  entries, schedules, onDeleteSchedule, onSaveSchedule, onDeleteEntry,
   calYear, calMonth, setCalYear, setCalMonth,
 }) {
   const [selectedDay, setSelectedDay] = useState(null)
@@ -20,11 +21,12 @@ export default function CalendarSection({
     setSelectedDay(null)
   }
 
-  // 일기 기록 map (날짜 → 기분 이모지용)
-  const entryMap = {}
+  // 날짜별 최근 이모지 최대 2개 (entries는 최신순 저장)
+  const emojiMap = {}
   entries.forEach(e => {
     const key = e.date.slice(0, 10)
-    if (!entryMap[key]) entryMap[key] = e
+    if (!emojiMap[key]) emojiMap[key] = []
+    if (emojiMap[key].length < 2) emojiMap[key].push(e.weather.emoji)
   })
 
   // 일정 map (날짜 → 일정 배열)
@@ -54,6 +56,10 @@ export default function CalendarSection({
     ? [...(scheduleMap[selectedDay] || [])].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'))
     : []
 
+  const dayEntries = selectedDay
+    ? entries.filter(e => e.date.startsWith(selectedDay))
+    : []
+
   const handleSaveSchedule = (data) => {
     const ok = onSaveSchedule({ ...data, date: selectedDay })
     if (ok) setAddModalOpen(false)
@@ -76,7 +82,7 @@ export default function CalendarSection({
           {days.map(({ date, otherMonth }) => {
             const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
             const isToday = date.toDateString() === today.toDateString()
-            const entry = entryMap[key]
+            const emojis = emojiMap[key] || []
             const isSelected = selectedDay === key
             const dow = date.getDay()
             const isWeekend = dow === 0 || dow === 6
@@ -94,7 +100,11 @@ export default function CalendarSection({
                 ].filter(Boolean).join(' ')}
                 onClick={() => !otherMonth && setSelectedDay(isSelected ? null : key)}
               >
-                {!otherMonth && entry && <span className="day-weather">{entry.weather.emoji}</span>}
+                {!otherMonth && emojis.length > 0 && (
+                  <div className="day-emojis">
+                    {[...emojis].reverse().map((em, i) => <span key={i}>{em}</span>)}
+                  </div>
+                )}
                 <span className="day-num">{date.getDate()}</span>
                 {!otherMonth && schedCount > 0 && (
                   <span className="day-sched-count">+{schedCount}</span>
@@ -113,6 +123,9 @@ export default function CalendarSection({
               + 일정 추가
             </button>
           </div>
+
+          {/* 일정 섹션 */}
+          <div className="day-section-label">📅 일정</div>
           <div className="schedule-list">
             {daySchedules.length > 0 ? (
               daySchedules.map(s => (
@@ -123,10 +136,19 @@ export default function CalendarSection({
                 </div>
               ))
             ) : (
-              <div className="empty-state" style={{ padding: '28px' }}>
-                <div className="empty-emoji">📭</div>
-                <div className="empty-text">이 날의 일정이 없어요</div>
-              </div>
+              <div className="day-empty">이 날의 일정이 없어요</div>
+            )}
+          </div>
+
+          {/* 일기 섹션 */}
+          <div className="day-section-label" style={{ marginTop: '20px' }}>✍️ 일기</div>
+          <div className="feed">
+            {dayEntries.length > 0 ? (
+              dayEntries.map(e => (
+                <EntryCard key={e.id} entry={e} onDelete={onDeleteEntry} />
+              ))
+            ) : (
+              <div className="day-empty">이 날의 일기가 없어요</div>
             )}
           </div>
         </div>
