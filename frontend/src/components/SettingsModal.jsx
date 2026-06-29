@@ -19,17 +19,17 @@ export default function SettingsModal({ apiKey, onSave, onClose }) {
       <form className="modal" onSubmit={handleSubmit}>
         <h2>⚙️ 날씨 API 설정</h2>
 
-        <label>기상청 공공데이터 API 키</label>
+        <label>OpenWeatherMap API 키</label>
         <input
           type="text"
           value={inputVal}
           onChange={e => setInputVal(e.target.value)}
-          placeholder="공공데이터포털 일반 인증키(Decoding) 입력"
+          placeholder="openweathermap.org에서 발급받은 키 입력"
         />
 
         <p style={{ fontSize: '12px', color: 'var(--text-sub)', marginBottom: '16px', lineHeight: '1.6' }}>
-          저장을 누르면 API 키가 브라우저에 저장되고,<br />
-          대전 지역 날씨를 다시 불러옵니다.
+          openweathermap.org에서 무료 API 키를 발급받아 입력하면<br />
+          현재 위치의 날씨를 자동으로 불러와요.
         </p>
 
         <div className="modal-footer">

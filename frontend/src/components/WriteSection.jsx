@@ -7,7 +7,7 @@ function getTodayStr() {
   return `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${days[now.getDay()]}요일`
 }
 
-export default function WriteSection({ selectedWeather, setSelectedWeather, diaryText, setDiaryText, currentTags, setCurrentTags, weatherLocation, onSave }) {
+export default function WriteSection({ selectedMood, setSelectedMood, diaryText, setDiaryText, currentTags, setCurrentTags, weatherInfo, onSave }) {
   const [tagInput, setTagInput] = useState('')
 
   const addTag = () => {
@@ -25,17 +25,34 @@ export default function WriteSection({ selectedWeather, setSelectedWeather, diar
     <div className="write-card">
       <div className="write-top">
         <div className="write-date">{getTodayStr()}</div>
-        <div className="weather-location">{weatherLocation}</div>
       </div>
 
-      <div className="weather-picker-label">오늘의 날씨 & 기분을 선택해요</div>
+      {/* 오늘의 실제 날씨 - API에서 자동으로 가져온 날씨 (고정) */}
+      {weatherInfo ? (
+        <div className="today-weather-bar">
+          <span className="today-weather-emoji">{weatherInfo.emoji}</span>
+          <span className="today-weather-text">
+            {weatherInfo.city && <>{weatherInfo.city} · </>}
+            <strong>{weatherInfo.label}</strong>
+            {weatherInfo.temp !== null && ` ${weatherInfo.temp}°C`}
+          </span>
+        </div>
+      ) : (
+        <div className="today-weather-bar no-weather">
+          <span>⚙️</span>
+          <span>날씨 정보를 보려면 API 키를 설정해주세요</span>
+        </div>
+      )}
+
+      {/* 오늘의 무드 - 사용자가 직접 선택 */}
+      <div className="weather-picker-label">오늘의 기분을 날씨로 표현해요 🌈</div>
       <div className="weather-grid">
         {WEATHERS.map((w, i) => (
           <button
             key={w.label}
-            className={`weather-btn${selectedWeather === i ? ' selected' : ''}`}
+            className={`weather-btn${selectedMood === i ? ' selected' : ''}`}
             title={w.label}
-            onClick={() => setSelectedWeather(i)}
+            onClick={() => setSelectedMood(i)}
           >
             <span>{w.emoji}</span>
             <span className="weather-label">{w.label}</span>
@@ -44,15 +61,15 @@ export default function WriteSection({ selectedWeather, setSelectedWeather, diar
       </div>
 
       <div className="mood-row">
-        <div className="mood-desc">선택한 날씨가 오늘의 기분이에요</div>
+        <div className="mood-desc">선택한 기분</div>
         <div className="selected-weather-info">
           <span className="selected-weather-emoji">
-            {selectedWeather !== null ? WEATHERS[selectedWeather].emoji : '—'}
+            {selectedMood !== null ? WEATHERS[selectedMood].emoji : '—'}
           </span>
           <span>
-            {selectedWeather !== null
-              ? `${WEATHERS[selectedWeather].label} — ${WEATHERS[selectedWeather].mood} 하루`
-              : '날씨를 선택해주세요'}
+            {selectedMood !== null
+              ? `${WEATHERS[selectedMood].label} — ${WEATHERS[selectedMood].mood} 하루`
+              : '기분을 선택해주세요'}
           </span>
         </div>
       </div>
