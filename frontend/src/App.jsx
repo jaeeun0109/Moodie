@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { WEATHERS, mapOwmCode } from './constants/weathers'
+import { WEATHERS, mapKmaWeather } from './constants/weathers'
 import WriteSection from './components/WriteSection'
 import FeedSection from './components/FeedSection'
 import CalendarSection from './components/CalendarSection'
@@ -50,34 +50,108 @@ export default function App() {
   }, [])
 
   const fetchWeather = useCallback(async (key) => {
-    if (!key) { setWeatherInfo(null); return }
-    if (!navigator.geolocation) {
-      setWeatherInfo({ emoji: '📍', label: '위치 불가', city: '', temp: null })
+  if (!key) {
+    setWeatherInfo(null)
+    return
+  }
+
+  const nx = 67
+  const ny = 100
+
+  const getBaseDateTime = () => {
+    const now = new Date()
+    const baseTimes = [2, 5, 8, 11, 14, 17, 20, 23]
+
+    let baseHour = baseTimes.filter(time => now.getHours() >= time).pop()
+
+    if (baseHour === undefined) {
+      now.setDate(now.getDate() - 1)
+      baseHour = 23
+    }
+
+    const yyyy = now.getFullYear()
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    const dd = String(now.getDate()).padStart(2, '0')
+
+    return {
+      baseDate: `${yyyy}${mm}${dd}`,
+      baseTime: `${String(baseHour).padStart(2, '0')}00`,
+    }
+  }
+
+  try {
+    const { baseDate, baseTime } = getBaseDateTime()
+
+    const url =
+      `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst` +
+      `?serviceKey=${key}` +
+      `&pageNo=1` +
+      `&numOfRows=1000` +
+      `&dataType=JSON` +
+      `&base_date=${baseDate}` +
+      `&base_time=${baseTime}` +
+      `&nx=${nx}` +
+      `&ny=${ny}`
+
+    const res = await fetch(url)
+    const data = await res.json()
+
+    console.log('기상청 API 응답:', data)
+
+    if (data.response?.header?.resultCode !== '00') {
+      setWeatherInfo({
+        emoji: '⚠️',
+        label: 'API 오류',
+        city: '',
+        temp: null,
+      })
       return
     }
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const { latitude: lat, longitude: lon } = pos.coords
-        const res = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&lang=kr&units=metric`
-        )
-        const data = await res.json()
-        if (data.cod !== 200) {
-          setWeatherInfo({ emoji: '⚠️', label: 'API 오류', city: '', temp: null })
-          return
-        }
-        const mapped = mapOwmCode(data.weather[0].id)
-        setWeatherInfo({
-          emoji: WEATHERS[mapped].emoji,
-          label: data.weather[0].description,
-          city: data.name,
-          temp: Math.round(data.main.temp),
-        })
-      } catch {
-        setWeatherInfo({ emoji: '⚠️', label: '오류', city: '', temp: null })
-      }
-    }, () => setWeatherInfo({ emoji: '📍', label: '위치 거부됨', city: '', temp: null }))
-  }, [])
+
+    const items = data.response.body.items.item
+
+    const today = new Date()
+    const yyyy = today.getFullYear()
+    const mm = String(today.getMonth() + 1).padStart(2, '0')
+    const dd = String(today.getDate()).padStart(2, '0')
+    const todayDate = `${yyyy}${mm}${dd}`
+    const targetTime = `${String(today.getHours()).padStart(2, '0')}00`
+
+    const tempItem =
+      items.find(item => item.category === 'TMP' && item.fcstDate === todayDate && item.fcstTime === targetTime) ||
+      items.find(item => item.category === 'TMP')
+
+    const rainItem =
+      items.find(item => item.category === 'PTY' && item.fcstDate === todayDate && item.fcstTime === targetTime) ||
+      items.find(item => item.category === 'PTY')
+
+    const skyItem =
+      items.find(item => item.category === 'SKY' && item.fcstDate === todayDate && item.fcstTime === targetTime) ||
+      items.find(item => item.category === 'SKY')
+
+    const temp = tempItem ? Number(tempItem.fcstValue) : 0
+    const pty = rainItem ? Number(rainItem.fcstValue) : 0
+    const sky = skyItem ? Number(skyItem.fcstValue) : 1
+
+    const weatherIndex = mapKmaWeather(sky, pty, temp)
+    const weather = WEATHERS[weatherIndex]
+
+    setWeatherInfo({
+      emoji: weather.emoji,
+      label: weather.label,
+      city: '대전',
+      temp: Math.round(temp),
+    })
+  } catch (error) {
+    console.error(error)
+    setWeatherInfo({
+      emoji: '⚠️',
+      label: '기상청 오류',
+      city: '',
+      temp: null,
+    })
+  }
+}, [])
 
   useEffect(() => {
     fetchWeather(apiKey)

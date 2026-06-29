@@ -24,7 +24,7 @@ export default function SettingsModal({ apiKey, onSave, onClose }) {
           type="text"
           value={inputVal}
           onChange={e => setInputVal(e.target.value)}
-          placeholder="openweathermap.org에서 발급받은 키 입력"
+          placeholder="기상청 공공데이터 API 키"
         />
 
         <p style={{ fontSize: '12px', color: 'var(--text-sub)', marginBottom: '16px', lineHeight: '1.6' }}>

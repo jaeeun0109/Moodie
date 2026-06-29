@@ -5,23 +5,45 @@ export const WEATHERS = [
   { emoji: '🌦️', label: '가끔비', mood: '복잡하고 다사다난한' },
   { emoji: '🌧️', label: '비', mood: '감성적이고 촉촉한' },
   { emoji: '⛈️', label: '폭풍', mood: '격렬하고 격동적인' },
-  { emoji: '🌩️', label: '번개', mood: '예측불가하고 짜릿한' },
   { emoji: '🌨️', label: '눈', mood: '포근하고 설레는' },
   { emoji: '❄️', label: '한파', mood: '차갑고 고요한' },
-  { emoji: '🌫️', label: '안개', mood: '몽롱하고 꿈같은' },
-  { emoji: '🌈', label: '무지개', mood: '희망차고 다채로운' },
   { emoji: '🌙', label: '밤', mood: '고요하고 사색적인' },
 ]
 
-export function mapOwmCode(code) {
-  const isNight = (() => { const h = new Date().getHours(); return h >= 19 || h < 6 })()
-  if (code === 800) return isNight ? 11 : 0
-  if (code >= 200 && code < 300) return code >= 210 ? 6 : 5
-  if (code >= 300 && code < 400) return 3
-  if (code >= 500 && code < 600) return code >= 502 ? 5 : code === 500 ? 4 : 3
-  if (code >= 600 && code < 700) return 7
-  if (code >= 700 && code < 800) return 9
-  if (code === 801) return 1
-  if (code >= 802) return 2
-  return 0
+const findWeatherIndex = (label) => {
+  const index = WEATHERS.findIndex(w => w.label === label)
+  return index === -1 ? 0 : index
+}
+
+export function mapKmaWeather(sky, pty, temp) {
+  const hour = new Date().getHours()
+  const isNight = hour >= 19 || hour < 6
+
+  if (Number(temp) <= -5) return findWeatherIndex('한파')
+
+  switch (Number(pty)) {
+    case 1:
+      return findWeatherIndex('비')
+    case 2:
+      return findWeatherIndex('가끔비')
+    case 3:
+      return findWeatherIndex('눈')
+    case 4:
+      return findWeatherIndex('가끔비')
+    default:
+      break
+  }
+
+  if (isNight) return findWeatherIndex('밤')
+
+  switch (Number(sky)) {
+    case 1:
+      return findWeatherIndex('맑음')
+    case 3:
+      return findWeatherIndex('구름조금')
+    case 4:
+      return findWeatherIndex('흐림')
+    default:
+      return findWeatherIndex('맑음')
+  }
 }
