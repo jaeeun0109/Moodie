@@ -44,22 +44,71 @@ export default function App() {
   }, [])
 
   const fetchWeather = useCallback(async (key) => {
-    if (!key) { setWeatherLocation('⚙️ API 키 미설정'); return }
-    if (!navigator.geolocation) { setWeatherLocation('📍 위치 불가'); return }
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const { latitude: lat, longitude: lon } = pos.coords
-        const res = await fetch(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${key}&lang=kr&units=metric`
-        )
-        const data = await res.json()
-        if (data.cod !== 200) { setWeatherLocation('⚠️ API 오류'); return }
-        setWeatherLocation(`📍 ${data.name} ${Math.round(data.main.temp)}°C`)
-        const mapped = mapOwmCode(data.weather[0].id)
-        if (mapped !== null) setSelectedWeather(prev => prev === null ? mapped : prev)
-      } catch { setWeatherLocation('⚠️ 날씨 오류') }
-    }, () => setWeatherLocation('📍 위치 거부됨'))
-  }, [])
+  if (!key) {
+    setWeatherLocation('⚙️ 공공데이터 API 키 미설정')
+    return
+  }
+
+  // 일단 대전/한밭대 근처 격자 좌표로 고정
+  const nx = 67
+  const ny = 100
+
+  const now = new Date()
+  now.setMinutes(now.getMinutes() - 40)
+
+  const yyyy = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  const baseDate = `${yyyy}${mm}${dd}`
+
+  const hour = now.getHours()
+  const baseTime = `${String(hour).padStart(2, '0')}30`
+
+  try {
+    const url =
+      `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst` +
+      `?serviceKey=${key}` +
+      `&pageNo=1` +
+      `&numOfRows=1000` +
+      `&dataType=JSON` +
+      `&base_date=${baseDate}` +
+      `&base_time=${baseTime}` +
+      `&nx=${nx}` +
+      `&ny=${ny}`
+
+    const res = await fetch(url)
+    const data = await res.json()
+
+    const items = data.response.body.items.item
+
+    const tempItem = items.find(item => item.category === 'T1H')
+    const rainItem = items.find(item => item.category === 'PTY')
+
+    const temp = tempItem ? Math.round(Number(tempItem.obsrValue)) : '-'
+    const pty = rainItem ? Number(rainItem.obsrValue) : 0
+
+    let weatherIndex = WEATHERS.findIndex(w => w.label === '맑음')
+
+    if (pty === 1 || pty === 5) {
+      weatherIndex = WEATHERS.findIndex(w => w.label === '비')
+    } else if (pty === 2 || pty === 6) {
+      weatherIndex = WEATHERS.findIndex(w => w.label === '눈')
+    } else if (pty === 3 || pty === 7) {
+      weatherIndex = WEATHERS.findIndex(w => w.label === '눈')
+    }
+
+    const hourNow = new Date().getHours()
+    if (hourNow >= 19 || hourNow < 6) {
+      weatherIndex = WEATHERS.findIndex(w => w.label === '밤')
+    }
+
+    setWeatherLocation(`📍 대전 ${temp}°C`)
+    setSelectedWeather(prev => prev === null ? weatherIndex : prev)
+  } catch (error) {
+    console.error(error)
+    setWeatherLocation('⚠️ 기상청 날씨 오류')
+  }
+}, [])
 
   useEffect(() => {
     fetchWeather(apiKey)
